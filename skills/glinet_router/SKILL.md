@@ -22,6 +22,7 @@ Use this skill to control and manage your GL.inet router (firmware 4.0+).
 - List all clients: `python3 {baseDir}/scripts/glinet-router.py clients`
 - Block client: `python3 {baseDir}/scripts/glinet-router.py block <MAC or IP>`
 - Unblock client: `python3 {baseDir}/scripts/glinet-router.py unblock <MAC or IP>`
+  - Note: Blocking supports either a MAC address or an IP address. The skill uses the router API `black_white_list.set_single_mac` to update the router blacklist and also keeps a local cache (`~/.glinet-skill/blocked.json`) so the CLI shows blocked status immediately.
 
 ### Router Control
 - Reboot immediately: `python3 {baseDir}/scripts/glinet-router.py reboot`
@@ -44,7 +45,7 @@ Listed in columns:
 - **Status**: Device status
   - 🟢 Online = Device currently connected and using internet
   - ⚪ Offline = Device previously connected but now offline
-  - 🔴 Blocked = Device is blocked and cannot access internet
+  - 🔴 Blocked = Device is blocked and cannot access internet. NOTE: the router's API may not always reflect the blocked flag in its client list, so this skill maintains a local blacklist cache to display blocked status reliably in the CLI.
 
 ## Behavior rules
 
