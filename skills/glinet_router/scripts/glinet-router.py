@@ -14,6 +14,7 @@ from pyglinet import GlInet
 # Configuration constants
 CONFIG_DIR = Path.home() / '.glinet-skill'
 CONFIG_FILE = CONFIG_DIR / 'config.json'
+BLOCKED_FILE = CONFIG_DIR / 'blocked.json'  # Track blocked clients locally
 
 # Default router settings
 DEFAULT_URL = 'https://192.168.8.1/rpc'
@@ -29,6 +30,24 @@ def save_config(config):
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=4)
     os.chmod(CONFIG_FILE, 0o600)  # Restrict permissions
+
+def load_blocked_clients():
+    """Load list of blocked clients from local cache."""
+    if not BLOCKED_FILE.exists():
+        return {}
+    
+    try:
+        with open(BLOCKED_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_blocked_clients(blocked):
+    """Save blocked clients to local cache."""
+    ensure_config_dir()
+    with open(BLOCKED_FILE, 'w') as f:
+        json.dump(blocked, f, indent=4)
+    os.chmod(BLOCKED_FILE, 0o600)
 
 def load_config():
     """Load configuration from file."""
@@ -91,9 +110,18 @@ def cmd_clients(router, args):
     result = router.request('call', ['clients', 'get_list'])
     clients = result.result.get('clients', [])
     
+    # Load locally tracked blocked clients
+    blocked_clients = load_blocked_clients()
+    
     if not clients:
         print("✅ No clients connected")
         return
+    
+    # Mark clients as blocked based on local cache
+    for client in clients:
+        mac = client.get('mac', '').upper()
+        if mac in blocked_clients:
+            client['blocked'] = True
     
     # Sort clients: online first, then by name (safe comparison with defensive type conversion)
     def sort_key(client):
@@ -188,14 +216,26 @@ def cmd_block(router, args):
     
     # Check for errors - API returns empty list on success
     if isinstance(result.result, list) and len(result.result) == 0:
-        # Success
-        pass
+        # Success - update local blocked cache
+        blocked_clients = load_blocked_clients()
+        if block:
+            blocked_clients[mac] = {'ip': identifier, 'blocked_at': datetime.now().isoformat()}
+        else:
+            blocked_clients.pop(mac, None)
+        save_blocked_clients(blocked_clients)
     elif isinstance(result.result, dict):
         err_code = result.result.get('err_code', 0)
         err_msg = result.result.get('err_msg', '')
         if err_code != 0:
             print(f"❌ Error {err_code}: {err_msg}")
             sys.exit(1)
+        # Success - update cache
+        blocked_clients = load_blocked_clients()
+        if block:
+            blocked_clients[mac] = {'ip': identifier, 'blocked_at': datetime.now().isoformat()}
+        else:
+            blocked_clients.pop(mac, None)
+        save_blocked_clients(blocked_clients)
     else:
         # Unexpected result format
         print(f"❌ Unexpected API response: {result.result}")
