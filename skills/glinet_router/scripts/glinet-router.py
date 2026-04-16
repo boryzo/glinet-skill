@@ -211,35 +211,33 @@ def cmd_block(router, args):
         print(f"Found MAC address: {mac}")
         block_params = {'mac': mac, 'block': block}
     
-    # Use the clients block_client method
-    result = router.request('call', ['clients', 'block_client', block_params])
-    
-    # Check for errors - API returns empty list on success
+    # Use the black_white_list.set_single_mac method for proper blacklist updates
+    bw_params = {'mode': 'black', 'operate': 'add' if block else 'del', 'mac': mac}
+    result = router.request('call', ['black_white_list', 'set_single_mac', bw_params])
+
+    # Check for errors - API may return empty list on success
     if isinstance(result.result, list) and len(result.result) == 0:
-        # Success - update local blocked cache
-        blocked_clients = load_blocked_clients()
-        if block:
-            blocked_clients[mac] = {'ip': identifier, 'blocked_at': datetime.now().isoformat()}
-        else:
-            blocked_clients.pop(mac, None)
-        save_blocked_clients(blocked_clients)
+        success = True
     elif isinstance(result.result, dict):
         err_code = result.result.get('err_code', 0)
         err_msg = result.result.get('err_msg', '')
         if err_code != 0:
             print(f"❌ Error {err_code}: {err_msg}")
             sys.exit(1)
-        # Success - update cache
+        success = True
+    else:
+        # Unexpected result format
+        print(f"❌ Unexpected API response: {result.result}")
+        sys.exit(1)
+
+    if success:
+        # Update local blocked cache to reflect router blacklist
         blocked_clients = load_blocked_clients()
         if block:
             blocked_clients[mac] = {'ip': identifier, 'blocked_at': datetime.now().isoformat()}
         else:
             blocked_clients.pop(mac, None)
         save_blocked_clients(blocked_clients)
-    else:
-        # Unexpected result format
-        print(f"❌ Unexpected API response: {result.result}")
-        sys.exit(1)
     
     action_past = "blocked" if block else "unblocked"
     print(f"✅ Client {identifier} {action_past} successfully!\n")
