@@ -1,7 +1,8 @@
 {
   "name": "glinet_router",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Skill for managing GL.inet router - clients, status, reboot, blocking.",
+  "last_updated": "2026-04-16T11:24:41Z",
   "entrypoint": "SKILL.md",
   "scripts_dir": "scripts",
   "main_script": "scripts/glinet-router.py"
