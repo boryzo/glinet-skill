@@ -162,12 +162,13 @@ def cmd_block(router, args):
         # It's a MAC address
         mac = identifier
         print(f"{action} client {mac}...\n")
+        block_params = {'mac': mac, 'block': block}
     else:
-        # It's an IP address, need to find the MAC
+        # It's an IP address - need to find the MAC from client list
         print(f"{action} client with IP {identifier}...\n")
         
         # Get client list to find MAC for this IP
-        result = router.request('call', ['clients', 'get', {}])
+        result = router.request('call', ['clients', 'get_list'])
         if not result.result or 'clients' not in result.result:
             print("❌ Failed to get client list")
             sys.exit(1)
@@ -184,18 +185,25 @@ def cmd_block(router, args):
             sys.exit(1)
         
         print(f"Found MAC address: {mac}")
+        block_params = {'mac': mac, 'block': block}
     
-    result = router.request('call', ['clients', 'block_client', {
-        'mac': mac,
-        'block': block
-    }])
+    # Use the clients block_client method
+    result = router.request('call', ['clients', 'block_client', block_params])
     
-    if result.result:
+    # Check for errors - API returns empty list on success
+    if isinstance(result.result, list) and len(result.result) == 0:
+        # Success
+        pass
+    elif isinstance(result.result, dict):
         err_code = result.result.get('err_code', 0)
         err_msg = result.result.get('err_msg', '')
         if err_code != 0:
             print(f"❌ Error {err_code}: {err_msg}")
             sys.exit(1)
+    else:
+        # Unexpected result format
+        print(f"❌ Unexpected API response: {result.result}")
+        sys.exit(1)
     
     action_past = "blocked" if block else "unblocked"
     print(f"✅ Client {identifier} {action_past} successfully!\n")
