@@ -110,8 +110,8 @@ def cmd_clients(router, args):
         print(f"⚠️  Warning: Could not sort clients ({e}), showing unsorted list")
         clients_sorted = clients
     
-    print(f"{'Device Name':<22} {'IP':<15} {'Total ↓':<12} {'Total ↑':<12} {'Speed ↓':<10} {'Speed ↑':<10} {'Status':<12}")
-    print("-" * 113)
+    print(f"{'Device Name':<22} {'IP':<15} {'Total ↓':<12} {'Total ↑':<12} {'Speed ↓':<10} {'Speed ↑':<10} {'Online':<10} {'Blocked':<10}")
+    print("-" * 121)
     
     for client in clients_sorted:
         # Get device name - prefer alias, then hostname, then MAC
@@ -136,16 +136,12 @@ def cmd_clients(router, args):
         current_rx_str = format_bandwidth(current_rx)
         current_tx_str = format_bandwidth(current_tx)
         
-        # Status indicator
-        if blocked:
-            status = "🔴 Blocked"
-        elif online:
-            status = "🟢 Online"
-        else:
-            status = "⚪ Offline"
+        # Online and Blocked indicators
+        online_indicator = "🟢 Yes" if online else "⚪ No"
+        blocked_indicator = "🔴 Yes" if blocked else "✅ No"
         
         device_name_short = (str(alias)[:21] if len(str(alias)) > 21 else str(alias))
-        print(f"{device_name_short:<22} {ip:<15} {total_rx_str:<12} {total_tx_str:<12} {current_rx_str:<10} {current_tx_str:<10} {status:<12}")
+        print(f"{device_name_short:<22} {ip:<15} {total_rx_str:<12} {total_tx_str:<12} {current_rx_str:<10} {current_tx_str:<10} {online_indicator:<10} {blocked_indicator:<10}")
 
 def cmd_block(router, args):
     """Block or unblock a client by MAC address or IP address."""
