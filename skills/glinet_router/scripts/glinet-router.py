@@ -95,12 +95,20 @@ def cmd_clients(router, args):
         print("✅ No clients connected")
         return
     
-    # Sort clients: online first, then by name (ensure all are strings for comparison)
-    def get_device_name(client):
-        name = client.get('alias') or client.get('name') or client.get('mac', 'Unknown')
-        return str(name).lower()
+    # Sort clients: online first, then by name (safe comparison with defensive type conversion)
+    def sort_key(client):
+        # Ensure online is bool, alias is string
+        if isinstance(client, dict):
+            online = bool(client.get('online', False))
+            alias = str(client.get('alias') or client.get('name') or client.get('mac', 'Unknown')).lower()
+            return (not online, alias)
+        return (True, 'z')  # Fallback for non-dict items
     
-    clients_sorted = sorted(clients, key=lambda c: (not c.get('online', False), get_device_name(c)))
+    try:
+        clients_sorted = sorted(clients, key=sort_key)
+    except Exception as e:
+        print(f"⚠️  Warning: Could not sort clients ({e}), showing unsorted list")
+        clients_sorted = clients
     
     print(f"{'Device Name':<22} {'IP':<15} {'Total ↓':<12} {'Total ↑':<12} {'Speed ↓':<10} {'Speed ↑':<10} {'Status':<12}")
     print("-" * 113)
@@ -321,23 +329,31 @@ def format_uptime(seconds):
 
 def format_bandwidth(bps):
     """Format bandwidth in human readable format (bytes/sec)."""
-    if bps < 1024:
-        return f"{bps:.0f} B/s"
-    elif bps < 1024 * 1024:
-        return f"{bps/1024:.1f} KB/s"
-    else:
-        return f"{bps/(1024*1024):.1f} MB/s"
+    try:
+        bps = float(bps) if bps else 0
+        if bps < 1024:
+            return f"{bps:.0f} B/s"
+        elif bps < 1024 * 1024:
+            return f"{bps/1024:.1f} KB/s"
+        else:
+            return f"{bps/(1024*1024):.1f} MB/s"
+    except (TypeError, ValueError):
+        return "N/A"
 
 def format_traffic_total(bytes_total):
     """Format total traffic in human readable format (bytes)."""
-    if bytes_total < 1024:
-        return f"{bytes_total:.0f} B"
-    elif bytes_total < 1024 * 1024:
-        return f"{bytes_total/1024:.1f} KB"
-    elif bytes_total < 1024 * 1024 * 1024:
-        return f"{bytes_total/(1024*1024):.1f} MB"
-    else:
-        return f"{bytes_total/(1024*1024*1024):.1f} GB"
+    try:
+        bytes_total = float(bytes_total) if bytes_total else 0
+        if bytes_total < 1024:
+            return f"{bytes_total:.0f} B"
+        elif bytes_total < 1024 * 1024:
+            return f"{bytes_total/1024:.1f} KB"
+        elif bytes_total < 1024 * 1024 * 1024:
+            return f"{bytes_total/(1024*1024):.1f} MB"
+        else:
+            return f"{bytes_total/(1024*1024*1024):.1f} GB"
+    except (TypeError, ValueError):
+        return "N/A"
 
 def main():
     parser = argparse.ArgumentParser(description="GL.inet Router Management CLI")
