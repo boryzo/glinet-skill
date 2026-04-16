@@ -148,16 +148,42 @@ def cmd_clients(router, args):
         print(f"{device_name_short:<22} {ip:<15} {total_rx_str:<12} {total_tx_str:<12} {current_rx_str:<10} {current_tx_str:<10} {status:<12}")
 
 def cmd_block(router, args):
-    """Block or unblock a client by MAC address."""
-    if not args.mac:
-        print("❌ MAC address required for block/unblock")
+    """Block or unblock a client by MAC address or IP address."""
+    if not args.identifier:
+        print("❌ MAC address or IP address required for block/unblock")
         sys.exit(1)
     
-    mac = args.mac.upper()
+    identifier = args.identifier.upper()
     block = args.command == 'block'
     action = "Blocking" if block else "Unblocking"
     
-    print(f"{action} client {mac}...\n")
+    # Check if identifier is an IP address (contains dots) or MAC address (contains colons)
+    if ':' in identifier:
+        # It's a MAC address
+        mac = identifier
+        print(f"{action} client {mac}...\n")
+    else:
+        # It's an IP address, need to find the MAC
+        print(f"{action} client with IP {identifier}...\n")
+        
+        # Get client list to find MAC for this IP
+        result = router.request('call', ['clients', 'get', {}])
+        if not result.result or 'clients' not in result.result:
+            print("❌ Failed to get client list")
+            sys.exit(1)
+        
+        clients = result.result['clients']
+        mac = None
+        for client in clients:
+            if client.get('ip') == identifier:
+                mac = client.get('mac')
+                break
+        
+        if not mac:
+            print(f"❌ No client found with IP {identifier}")
+            sys.exit(1)
+        
+        print(f"Found MAC address: {mac}")
     
     result = router.request('call', ['clients', 'block_client', {
         'mac': mac,
@@ -172,7 +198,7 @@ def cmd_block(router, args):
             sys.exit(1)
     
     action_past = "blocked" if block else "unblocked"
-    print(f"✅ Client {mac} {action_past} successfully!\n")
+    print(f"✅ Client {identifier} {action_past} successfully!\n")
 
 def cmd_reboot(router, args):
     """Reboot the router immediately or schedule it."""
@@ -368,12 +394,12 @@ def main():
     
     # Block command
     block_parser = subparsers.add_parser('block', help='Block a client')
-    block_parser.add_argument('mac', nargs='?', help='MAC address of client to block')
+    block_parser.add_argument('identifier', nargs='?', help='MAC address or IP address of client to block')
     block_parser.set_defaults(handler=lambda r, a: (setattr(a, 'command', 'block'), cmd_block(r, a)) or None)
     
     # Unblock command
     unblock_parser = subparsers.add_parser('unblock', help='Unblock a client')
-    unblock_parser.add_argument('mac', nargs='?', help='MAC address of client to unblock')
+    unblock_parser.add_argument('identifier', nargs='?', help='MAC address or IP address of client to unblock')
     unblock_parser.set_defaults(handler=lambda r, a: (setattr(a, 'command', 'unblock'), cmd_block(r, a)) or None)
     
     # Reboot command

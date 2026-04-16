@@ -20,8 +20,8 @@ Use this skill to control and manage your GL.inet router (firmware 4.0+).
 
 ### Client Management
 - List all clients: `python3 {baseDir}/scripts/glinet-router.py clients`
-- Block client: `python3 {baseDir}/scripts/glinet-router.py block <MAC>`
-- Unblock client: `python3 {baseDir}/scripts/glinet-router.py unblock <MAC>`
+- Block client: `python3 {baseDir}/scripts/glinet-router.py block <MAC or IP>`
+- Unblock client: `python3 {baseDir}/scripts/glinet-router.py unblock <MAC or IP>`
 
 ### Router Control
 - Reboot immediately: `python3 {baseDir}/scripts/glinet-router.py reboot`
