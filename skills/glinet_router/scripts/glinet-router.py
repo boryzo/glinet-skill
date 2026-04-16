@@ -95,15 +95,19 @@ def cmd_clients(router, args):
         print("✅ No clients connected")
         return
     
-    # Sort clients: online first, then by name
-    clients_sorted = sorted(clients, key=lambda c: (not c.get('online', False), c.get('alias', c.get('name', 'Unknown'))))
+    # Sort clients: online first, then by name (ensure all are strings for comparison)
+    def get_device_name(client):
+        name = client.get('alias') or client.get('name') or client.get('mac', 'Unknown')
+        return str(name).lower()
+    
+    clients_sorted = sorted(clients, key=lambda c: (not c.get('online', False), get_device_name(c)))
     
     print(f"{'Device Name':<22} {'IP':<15} {'Total ↓':<12} {'Total ↑':<12} {'Speed ↓':<10} {'Speed ↑':<10} {'Status':<12}")
     print("-" * 113)
     
     for client in clients_sorted:
         # Get device name - prefer alias, then hostname, then MAC
-        alias = client.get('alias', client.get('name', client.get('mac', 'Unknown')))
+        alias = client.get('alias') or client.get('name') or client.get('mac', 'Unknown')
         ip = client.get('ip', 'N/A')
         
         # Total traffic (downloaded/uploaded)
@@ -132,7 +136,7 @@ def cmd_clients(router, args):
         else:
             status = "⚪ Offline"
         
-        device_name_short = (alias[:21] if len(alias) > 21 else alias)
+        device_name_short = (str(alias)[:21] if len(str(alias)) > 21 else str(alias))
         print(f"{device_name_short:<22} {ip:<15} {total_rx_str:<12} {total_tx_str:<12} {current_rx_str:<10} {current_tx_str:<10} {status:<12}")
 
 def cmd_block(router, args):
