@@ -35,11 +35,16 @@ Use this skill to control and manage your GL.inet router (firmware 4.0+).
 ## Client list output description
 
 Listed in columns:
-- **MAC Address**: Hardware identifier of the device
-- **IP Address**: Current DHCP-assigned IP
-- **↑ Upload**: Current upload speed (data sent from device)
-- **↓ Download**: Current download speed (data received to device)
-- **Commented**: Optional description/label for the device
+- **Device Name**: Device name (alias), hostname, or MAC address if no name is set
+- **IP**: Current DHCP-assigned IP address
+- **Total ↓**: Total download traffic since device connected (in MB/GB)
+- **Total ↑**: Total upload traffic since device connected (in MB/GB)
+- **Speed ↓**: Current download speed (real-time, in KB/s or MB/s)
+- **Speed ↑**: Current upload speed (real-time, in KB/s or MB/s)
+- **Status**: Device status
+  - 🟢 Online = Device currently connected and using internet
+  - ⚪ Offline = Device previously connected but now offline
+  - 🔴 Blocked = Device is blocked and cannot access internet
 
 ## Behavior rules
 

@@ -88,29 +88,52 @@ def cmd_clients(router, args):
     """List connected clients and their bandwidth usage."""
     print("📱 Getting client list...\n")
     
-    result = router.request('call', ['', 'clients', 'get_list'])
-    clients = result.data.get('clients', [])
+    result = router.request('call', ['clients', 'get_list'])
+    clients = result.result.get('clients', [])
     
     if not clients:
         print("✅ No clients connected")
         return
     
-    print(f"{'MAC Address':<20} {'IP Address':<15} {'↑ Upload':<12} {'↓ Download':<12} {'Commented':<20}")
-    print("-" * 90)
+    # Sort clients: online first, then by name
+    clients_sorted = sorted(clients, key=lambda c: (not c.get('online', False), c.get('alias', c.get('name', 'Unknown'))))
     
-    for client in clients:
-        mac = client.get('mac', 'N/A')
+    print(f"{'Device Name':<22} {'IP':<15} {'Total ↓':<12} {'Total ↑':<12} {'Speed ↓':<10} {'Speed ↑':<10} {'Status':<12}")
+    print("-" * 113)
+    
+    for client in clients_sorted:
+        # Get device name - prefer alias, then hostname, then MAC
+        alias = client.get('alias', client.get('name', client.get('mac', 'Unknown')))
         ip = client.get('ip', 'N/A')
-        tx = client.get('tx', 0)
-        rx = client.get('rx', 0)
-        comment = client.get('comment', '')
         
-        # Convert bytes/sec to more readable format
-        tx_str = format_bandwidth(tx)
-        rx_str = format_bandwidth(rx)
-        comment_str = comment[:18] if comment else ''
+        # Total traffic (downloaded/uploaded)
+        total_rx = client.get('total_rx', 0)
+        total_tx = client.get('total_tx', 0)
         
-        print(f"{mac:<20} {ip:<15} {tx_str:<12} {rx_str:<12} {comment_str:<20}")
+        # Current speed
+        current_rx = client.get('rx', 0)
+        current_tx = client.get('tx', 0)
+        
+        # Status flags
+        online = client.get('online', False)
+        blocked = client.get('blocked', False)
+        
+        # Format values
+        total_rx_str = format_traffic_total(total_rx)
+        total_tx_str = format_traffic_total(total_tx)
+        current_rx_str = format_bandwidth(current_rx)
+        current_tx_str = format_bandwidth(current_tx)
+        
+        # Status indicator
+        if blocked:
+            status = "🔴 Blocked"
+        elif online:
+            status = "🟢 Online"
+        else:
+            status = "⚪ Offline"
+        
+        device_name_short = (alias[:21] if len(alias) > 21 else alias)
+        print(f"{device_name_short:<22} {ip:<15} {total_rx_str:<12} {total_tx_str:<12} {current_rx_str:<10} {current_tx_str:<10} {status:<12}")
 
 def cmd_block(router, args):
     """Block or unblock a client by MAC address."""
@@ -124,14 +147,14 @@ def cmd_block(router, args):
     
     print(f"{action} client {mac}...\n")
     
-    result = router.request('call', ['', 'clients', 'block_client', {
+    result = router.request('call', ['clients', 'block_client', {
         'mac': mac,
         'block': block
     }])
     
-    if result.data:
-        err_code = result.data.get('err_code', 0)
-        err_msg = result.data.get('err_msg', '')
+    if result.result:
+        err_code = result.result.get('err_code', 0)
+        err_msg = result.result.get('err_msg', '')
         if err_code != 0:
             print(f"❌ Error {err_code}: {err_msg}")
             sys.exit(1)
@@ -154,7 +177,7 @@ def cmd_reboot(router, args):
             print(f"📅 Scheduling reboot at {hour:02d}:{minute:02d}...\n")
             
             # Get current config and update it
-            router.request('call', ['', 'reboot', 'set_config', {
+            router.request('call', ['reboot', 'set_config', {
                 'hour': str(hour),
                 'min': str(minute),
                 'enable': True,
@@ -169,7 +192,7 @@ def cmd_reboot(router, args):
         # Immediate reboot
         print("🔄 Rebooting router immediately...\n")
         try:
-            router.request('call', ['', 'system', 'reboot'])
+            router.request('call', ['system', 'reboot'])
             print("✅ Reboot command sent!\n")
         except Exception as e:
             print(f"❌ Reboot failed: {e}\n")
@@ -190,8 +213,8 @@ def print_system_status(router):
     """Print system status."""
     print("🖥️  SYSTEM STATUS\n")
     
-    result = router.request('call', ['', 'system', 'get_status'])
-    system_info = result.data.get('system', {})
+    result = router.request('call', ['system', 'get_status'])
+    system_info = result.result.get('system', {})
     
     # Uptime
     uptime = system_info.get('uptime', 0)
@@ -232,8 +255,8 @@ def print_modem_status(router):
     """Print modem status."""
     print("📱 MODEM STATUS\n")
     
-    result = router.request('call', ['', 'modem', 'get_status'])
-    modems = result.data.get('modems', [])
+    result = router.request('call', ['modem', 'get_status'])
+    modems = result.result.get('modems', [])
     
     if not modems:
         print("  ❌ No modem detected\n")
@@ -300,6 +323,17 @@ def format_bandwidth(bps):
         return f"{bps/1024:.1f} KB/s"
     else:
         return f"{bps/(1024*1024):.1f} MB/s"
+
+def format_traffic_total(bytes_total):
+    """Format total traffic in human readable format (bytes)."""
+    if bytes_total < 1024:
+        return f"{bytes_total:.0f} B"
+    elif bytes_total < 1024 * 1024:
+        return f"{bytes_total/1024:.1f} KB"
+    elif bytes_total < 1024 * 1024 * 1024:
+        return f"{bytes_total/(1024*1024):.1f} MB"
+    else:
+        return f"{bytes_total/(1024*1024*1024):.1f} GB"
 
 def main():
     parser = argparse.ArgumentParser(description="GL.inet Router Management CLI")
